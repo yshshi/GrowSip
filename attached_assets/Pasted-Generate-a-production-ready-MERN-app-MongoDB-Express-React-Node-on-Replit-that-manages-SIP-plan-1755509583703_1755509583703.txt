@@ -1,0 +1,290 @@
+Generate a production-ready MERN app (MongoDB, Express, React, Node) on Replit that manages SIP plans for users and provides an admin console to create/update/delete plans, control expected return rates, review/approve KYC, view transactions, and apply user-specific return adjustments. The UI should look like a modern fintech dashboard with rich charts (trading-like series), calculators (SIP, step-up SIP, goal-based, lumpsum vs SIP, XIRR), and responsive design.
+
+Tech Stack & Libraries
+
+Frontend
+
+React + Vite
+
+TypeScript
+
+Tailwind CSS + shadcn/ui components (Buttons, Cards, Dialog, Tabs, Dropdown, Input, Table, Badge, Tabs, Chart container)
+
+React Router v6
+
+TanStack Query (server state)
+
+React Hook Form + Zod (forms & validation)
+
+Axios (API client with interceptors for JWT)
+
+Recharts (area/line/bar/pie) for most charts
+
+lightweight-charts (TradingView-like charts for plan market series)
+
+Zustand (or Redux Toolkit) for UI state (theme, sidebar, filters)
+
+Backend
+
+Node.js + Express
+
+MongoDB + Mongoose
+
+JWT Auth (access + refresh) with role-based access control (RBAC): admin, user
+
+bcrypt for password hashing
+
+Helmet, CORS, express-rate-limit, morgan
+
+Zod for request validation (via middleware)
+
+Nodemailer (stub transport) for email notifications
+
+Dev/Infra
+
+Environment variables via .env
+
+ESLint + Prettier
+
+Vitest/Jest (basic unit tests for key utils)
+
+Core Features
+
+User (Investor)
+
+Auth: Sign up, login, logout, refresh token, password reset flow.
+
+KYC/Profile: Personal details, PAN/Aadhaar fields (mock), bank account (masked), contact info. Status: pending, approved, rejected.
+
+Browse SIP Plans: Cards list with search, sort (return rate, risk, min amount), filters (category, risk level). Each card shows sparkline of historical returns.
+
+Plan Detail: Trading-like chart with selectable timespans (1M, 3M, 6M, 1Y, 3Y, 5Y), metrics (CAGR, volatility, drawdown), plan info (min SIP amt, lock-in, category), historical monthly return series.
+
+Subscribe/Manage SIP: Start SIP (amount, day of month), pause/resume, increase/decrease amount, cancel with confirmation. See projected growth at current expected return.
+
+Calculators:
+
+Standard SIP Growth: FV = A * [((1 + r/m)^(m*n) − 1) / (r/m)] * (1 + r/m)
+
+Step-up SIP: Annual % increase in contribution; show table & chart.
+
+Lumpsum vs SIP comparison.
+
+Goal-based: given target corpus and horizon, compute required SIP.
+
+Inflation-adjusted return slider.
+
+XIRR approximation (Newton-Raphson on dated cashflows; provide safeguards).
+Each calculator shows charts (line/area) and a neatly formatted result card, with the option to "Apply to Plan".
+
+Portfolio Dashboard: Current value, invested amount, absolute & XIRR returns, allocation by plan (donut), value-over-time chart, recent transactions table.
+
+Transactions: Paginated table: date, plan, type (SIP debit, adjustment, refund), amount, status; CSV/PDF export.
+
+Notifications: In-app inbox and toasts (payment success, KYC decision, admin adjustments).
+
+Statements: Download monthly/annual PDF (server renders minimal PDF with summary tables & charts as images).
+
+Admin
+
+Auth & RBAC: Admin-only routes and UI.
+
+Plans CRUD: Create/update/delete plans with fields: name, category, risk level, min SIP amount, lock-in (months), expected return range (min, max), default expected return, description, tags, and attach a historical market/return series.
+
+Return Controls:
+
+Global expected return update per plan.
+
+User-specific adjustment: add/subtract basis points for a given user-plan pair (with start/end date). Changes produce AuditLog entries.
+
+User Management: List/search users; view full profile; KYC approve/reject; freeze/unfreeze; impersonate (read-only) to debug.
+
+Transactions & Payouts: View all transactions with filters (date, plan, status). Manual entries for refunds/adjustments. Reconcile vs webhook log (mocked).
+
+Analytics: KPI cards (Total AUM, Active SIPs, MTD inflows, Approval rate), trend charts, and plan performance comparisons.
+
+System Settings: Risk category definitions, feature flags (enable/disable calculators), and email templates.
+
+Audit Logs: Every admin mutation recorded (who, when, what changed; before/after snapshot id refs).
+
+Data Models (Mongoose)
+
+User: { email, passwordHash, role, status, kyc: { pan, aadhaarLast4, bankMasked, verifiedAt }, createdAt }
+
+Plan: { name, category, riskLevel, minSipAmount, lockInMonths, expectedReturnDefault, expectedReturnMin, expectedReturnMax, description, tags: [string], marketSeriesId, createdAt, updatedAt }
+
+MarketSeries: { planId, points: [{ date, open, high, low, close }], monthlyReturns: [{ month: YYYY-MM, pct }]} // for charts
+
+Subscription: { userId, planId, amount, dayOfMonth, status, startDate, pauseDates: [{ from, to }] }
+
+Transaction: { userId, planId, subscriptionId, type: 'SIP'|'REFUND'|'ADJUSTMENT', amount, status: 'SUCCESS'|'FAILED'|'PENDING', gatewayRef, createdAt }
+
+RateAdjustment: { userId, planId, deltaBps, reason, effectiveFrom, effectiveTo, createdBy }
+
+AuditLog: { actorId, action, targetType, targetId, before, after, createdAt }
+
+Ensure proper indexes on userId, planId, createdAt, and compound indexes for queries.
+
+API Design (Express)
+
+Auth
+
+POST /api/auth/register
+
+POST /api/auth/login → returns access & refresh tokens
+
+POST /api/auth/refresh
+
+POST /api/auth/logout
+
+Users (admin only for list/search)
+
+GET /api/users (admin)
+
+GET /api/users/:id (self or admin)
+
+PATCH /api/users/:id (self or admin)
+
+POST /api/users/:id/kyc/approve (admin)
+
+POST /api/users/:id/kyc/reject (admin)
+
+POST /api/users/:id/freeze (admin)
+
+POST /api/users/:id/unfreeze (admin)
+
+Plans
+
+GET /api/plans
+
+GET /api/plans/:id
+
+POST /api/plans (admin)
+
+PATCH /api/plans/:id (admin)
+
+DELETE /api/plans/:id (admin)
+
+POST /api/plans/:id/expected-return (admin) { defaultRate }
+
+Market Series
+
+POST /api/plans/:id/market-series (admin) — upload JSON OHLC points & monthly returns
+
+GET /api/plans/:id/market-series — public for charts
+
+Subscriptions
+
+POST /api/subscriptions — start SIP
+
+GET /api/subscriptions — list user’s
+
+PATCH /api/subscriptions/:id — pause/resume/change amount/cancel
+
+Transactions
+
+GET /api/transactions (self; admin can query all)
+
+POST /api/transactions/manual (admin) — refunds/adjustments
+
+Rate Adjustments
+
+POST /api/rates/adjust (admin) — per user-plan delta in bps
+
+GET /api/rates/adjust/:userId/:planId — list active/inactive adjustments
+
+Webhooks (Mock)
+
+POST /api/webhooks/payment — simulate gateway callbacks (success/fail)
+
+Audit
+
+GET /api/audit (admin) with filters
+
+Include middleware: auth (JWT), role guard, schema validation (Zod), error handler, request logging, and rate limiting on auth endpoints.
+
+Frontend UX & Pages
+
+Global Layout: Left sidebar (collapsible) with icons, top app bar with search and user menu; dark/light toggle; responsive.
+
+Design Language: Clean fintech look. Use Cards with soft shadows, rounded-2xl, adequate padding; grid layouts; subtle micro-interactions with Framer Motion.
+
+User App
+
+Dashboard: KPI cards (Invested, Current Value, P&L, XIRR), area chart (value over time), donut (allocation), recent transactions table.
+
+Plans: Filterable cards with mini sparklines (last 12 months). Sort by return, risk, popularity.
+
+Plan Detail: Tabs → Overview | Performance | Documents | Calculator. Use lightweight-charts for OHLC/candlestick plus moving averages. Also show Recharts line of monthly return %.
+
+Calculators: SIP, Step-up SIP, Lumpsum vs SIP, Goal-based, XIRR. Persist latest inputs in URL query or localStorage.
+
+Transactions: Paginated DataTable with column filters; CSV/PDF export.
+
+Profile/KYC: Form with status badge; upload fields mocked; status badges and timeline of decisions.
+
+Admin App (route prefix /admin)
+
+Dashboard: AUM, Active SIPs, MTD inflow, Approval Rate. Line charts comparing plans; table for top plans by inflows.
+
+Plans Manager: CRUD with side drawer form; upload/import market series JSON; preview charts live.
+
+Users: Table with status filters, KYC approval modal, user detail drawer (subscriptions, transactions, adjustments, audit trail).
+
+Transactions: Global list with date range, plan, status filters; reconciliation view against webhook log.
+
+Adjustments: Create per-user plan return delta (bps), with effective dates; history timeline; revert button.
+
+Settings: Risk definitions, feature flags, email templates.
+
+Audit Logs: Filter by actor/action; diff viewer for before/after JSON.
+
+Calculators: Details & Validation
+
+SIP FV (monthly): FV = A * [((1 + r/12)^(12*n) − 1) / (r/12)] * (1 + r/12) where A=monthly contribution, r=annual expected return (decimal), n=years.
+
+Step-up SIP: contribution grows by g annually → simulate month-by-month; show table (month, contribution, cumulative, FV) + chart.
+
+Goal-based: solve for A given target FV.
+
+Lumpsum vs SIP: compute FV for both; show comparison chart.
+
+XIRR: implement iterative solver with bounds and fallback; show warning if not converged.
+
+Inflation slider: adjust real return r_real ≈ (1+r)/(1+i) − 1.
+
+All inputs validated (min/max, sensible defaults) and display helpful tooltips.
+
+Seed Data & Test Users
+
+Seed script to create:
+
+Admin: admin@demo.com / Admin@1234
+
+User: user@demo.com / User@1234
+
+6 demo plans across categories with OHLC series (3–5 years monthly) + monthly return % arrays. Vary risk/return.
+
+20 sample transactions across users and plans.
+
+Include npm run seed in root to populate DB.
+
+Security & Reliability
+
+Hash passwords (bcrypt, 12 rounds). Never store raw passwords.
+
+Use access tokens (short-lived) + refresh tokens (httpOnly cookie).
+
+Input validation with Zod; sanitize and escape outputs where necessary.
+
+Rate-limit auth endpoints; lock account after repeated failures with incremental backoff.
+
+RBAC middleware and per-route guards.
+
+Server-side pagination & query whitelisting; indexes on heavy collections.
+
+Full audit logging for admin mutations.
+
+Nice-to-Have Enhancements
+
+Feature flags to toggle calculators and charts.
