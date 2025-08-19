@@ -6,6 +6,13 @@ interface AllocationChartProps {
   plans: any[];
 }
 
+interface ChartDataItem {
+  category: string;
+  amount: number;
+  percentage: string | number;
+  color: string;
+}
+
 export default function AllocationChart({ subscriptions, plans }: AllocationChartProps) {
   // Calculate allocation data
   const allocationData = subscriptions.reduce((acc: any, sub: any) => {
@@ -28,7 +35,7 @@ export default function AllocationChart({ subscriptions, plans }: AllocationChar
   const totalAmount = allocationData.reduce((sum: number, item: any) => sum + item.amount, 0);
   
   // Calculate percentages and assign colors
-  const chartData = allocationData.map((item: any, index: number) => ({
+  const chartData: ChartDataItem[] = allocationData.map((item: any, index: number) => ({
     ...item,
     percentage: totalAmount > 0 ? ((item.amount / totalAmount) * 100).toFixed(1) : 0,
     color: [
@@ -62,7 +69,7 @@ export default function AllocationChart({ subscriptions, plans }: AllocationChar
                   outerRadius={90}
                   dataKey="amount"
                 >
-                  {chartData.map((entry, index) => (
+                  {chartData.map((entry: ChartDataItem, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>

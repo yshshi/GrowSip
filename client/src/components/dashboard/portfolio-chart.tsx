@@ -17,8 +17,11 @@ export default function PortfolioChart({ data }: PortfolioChartProps) {
     
     // Sort transactions by date
     const sortedTransactions = [...data]
-      .filter(tx => tx.status === 'SUCCESS')
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt.getTime()));
+          .filter(tx => tx.status === 'SUCCESS')
+          .sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
 
     // Generate monthly data points
     const now = new Date();
